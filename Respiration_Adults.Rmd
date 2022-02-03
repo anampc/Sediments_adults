@@ -1,0 +1,465 @@
+---
+title: "Respiration adults + sediments"
+author: "Ana M. Palacio & Xaymara Serrano"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+      toc: true
+      df_print: paged
+      theme: united
+      code_folding: hide
+bibliography: packages.bib
+nocite: '@*'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+# General project set-up 
+
+```{r libraries, results="hide"}
+
+# Load all libraries and sources required to run the script
+    library(tidyverse)
+    library(ggthemes)
+    library(ggplot2)
+
+    library(lme4)
+    library(lmerTest)
+    #library(multcomp)
+    #library(multcompView)
+    #library(emmeans)
+    #library(effects)
+     
+    ggthe_bw<-theme_bw()+
+    theme(panel.grid= element_blank(),
+          legend.box.background = element_rect(),
+          panel.background =element_rect(fill = NA, color = "black")
+          )
+  
+```
+
+# 1. Data
+
+```{r}
+# Data
+    data<-read.csv("Data/Respiration_Adults.csv", header = TRUE)
+    summary(data)
+    
+    data$Core<-paste(data$Species, data$Core, sep = "-")
+    data$Tank<-factor(data$Tank, ordered = F)
+    data$Plate<-factor(data$Plate, ordered = F)
+    data$Well<-factor(data$Well, ordered = F)
+    data$Timepoint<-factor(data$Timepoint,
+                           levels=c("Initial", "Exposure","Recovery"))
+    
+    data<-data[data$Treatment!="Reef High Shaded", ]
+    data<-data[data$Treatment!="Port High Shaded", ]
+    data$Treatment<-factor(data$Treatment, 
+                            # levels=c("Control", "Low Reef","High Reef",
+                            #         "Reef High Shaded", 
+                            #         "Low Port","High Port", "Port High Shaded"))
+                            levels=c("Control", "Low Reef","High Reef",
+                                    "Low Port","High Port"))
+    data<-data[complete.cases(data[ , 7]),]
+    summary(data)
+    
+    wide.data<-select(data, c("Species", "Core", "Timepoint", "Tank", "Treatment", "FINAL.MO2..nmol.min."))
+    wide.data<- reshape(wide.data, idvar = "Core", timevar = "Timepoint", direction = "wide")
+    head(wide.data)
+    wide.data$change<-wide.data$FINAL.MO2..nmol.min..Exposure-wide.data$FINAL.MO2..nmol.min..Initial
+    wide.data<-wide.data[which(wide.data$Species.Exposure!="NA"),]
+  # YII.Wide$treat_rec<-YII.Wide$YII.after_exposure-YII.Wide$YII.after_recovery
+```
+
+# 2. Exploratory plots
+
+## Plot all
+
+```{r}
+O2<- ggplot(data, aes (Treatment, FINAL.MO2..nmol.min.)) +
+  geom_boxplot ()+
+  stat_summary(fun.data = "mean_cl_boot",geom = "errorbar", width = 0.2 )+
+  stat_summary(fun=mean, geom="point") + 
+  #geom_point(shape=21)+
+
+  geom_jitter(alpha=0.5, shape=21)+
+  theme(legend.position = "bottom")+
+  scale_y_continuous(# limits = c(0, 15),
+                      #   breaks = seq(0,1,0.2),  
+                      #   expand = c(0.01, 0.01),
+                         name=("O2 [nmol/min]")) +
+  ggthe_bw +
+  facet_grid(Species~Timepoint, scales = "free_y")
+O2
+```
+
+## Plot change
+
+```{r}
+delta_O2<- ggplot(wide.data, aes (Treatment.Exposure, change)) +
+  geom_boxplot ()+
+  stat_summary(fun.data = "mean_cl_boot",geom = "errorbar", width = 0.2, colour="blue")+
+  stat_summary(fun=mean, geom="point", colour="blue") + 
+  #geom_point(shape=21)+
+
+  geom_point(alpha=0.5, shape=21)+
+  theme(legend.position = "bottom")+
+  scale_y_continuous(#limits = c(0, 15),
+                      #   breaks = seq(0,1,0.2),  
+                      #   expand = c(0.01, 0.01),
+                         name=("delta O2 [nmol/min]")) +
+  ggthe_bw + geom_abline(slope = 0, intercept = 0)+
+  facet_grid(~Species.Exposure)
+delta_O2
+
+
+log_delta_O2<- ggplot(wide.data, aes (Treatment.Exposure, log(change))) +
+  geom_boxplot ()+
+  stat_summary(fun.data = "mean_cl_boot",geom = "errorbar", width = 0.2, colour="blue")+
+  stat_summary(fun=mean, geom="point", colour="blue") + 
+  #geom_point(shape=21)+
+
+  geom_point(alpha=0.5, shape=21)+
+  theme(legend.position = "bottom")+
+  scale_y_continuous(#limits = c(0, 15),
+                      #   breaks = seq(0,1,0.2),  
+                      #   expand = c(0.01, 0.01),
+                         name=("log delta O2 [nmol/min]")) +
+  ggthe_bw + geom_abline(slope = 0, intercept = 0)+
+  facet_grid(~Species.Exposure)
+log_delta_O2
+```
+
+# 3 Values 
+
+# 3.1 LMMs - both time points
+
+```{r}
+## model 1: LMER for both species
+  fit1<-lmerTest::lmer(FINAL.MO2..nmol.min. ~Treatment * Timepoint +
+                         Species + (1|Core), data=data)
+  isSingular(fit1)
+  anova(fit1)
+  ranova(fit1)
+  summary(fit1)
+  par(mfrow=c(2,2))
+  plot(fit1)
+  par(mfrow=c(1,1))
+  step(fit1)
+  
+## model 2: LMER for Past
+  fit_Past<-lmerTest::lmer(FINAL.MO2..nmol.min. ~Treatment*Timepoint + (1|Core),
+            data=data[data$Species=="Past",])
+  isSingular(fit_Past)
+  anova(fit_Past)
+  ranova(fit_Past)
+  summary(fit_Past)
+  par(mfrow=c(2,2))
+  plot(fit_Past)
+  par(mfrow=c(1,1))
+  #step(fit_Past)
+  
+## model 3: LMER for Ssid
+  fit_Ssid<-lmerTest::lmer(FINAL.MO2..nmol.min. ~Treatment*Timepoint + (1|Core),
+               data=data[data$Species=="Ssid",])
+  isSingular(fit_Ssid)
+  anova(fit_Ssid)
+  ranova(fit_Ssid)
+  summary(fit_Ssid)
+  plot(fit_Ssid)
+  #step(fit_Ssid)
+```
+
+# 3.2 LMMs - Expossure - log
+
+```{r}
+exposure<-data[data$Timepoint=="Exposure", ]
+
+## model 1: LMER for both species
+  fit1<-lmerTest::lmer(log(FINAL.MO2..nmol.min.) ~Treatment +
+                         Species + (1|Tank), data=exposure)
+  isSingular(fit1)
+  anova(fit1)
+  ranova(fit1)
+  summary(fit1)
+  par(mfrow=c(2,2))
+  plot(fit1)
+  par(mfrow=c(1,1))
+  #step(fit1)
+  
+## model 2: LMER for Past
+  fit_Past<-lmerTest::lmer(log(FINAL.MO2..nmol.min.) ~Treatment + (1|Tank),
+            data=exposure[exposure$Species=="Past",])
+  isSingular(fit_Past)
+  anova(fit_Past)
+  ranova(fit_Past)
+  summary(fit_Past)
+  par(mfrow=c(2,2))
+  plot(fit_Past)
+  par(mfrow=c(1,1))
+  #step(fit_Past)
+  
+## model 3: LMER for Ssid
+  fit_Ssid<-lmerTest::lmer(log(FINAL.MO2..nmol.min.) ~Treatment + (1|Tank),
+               data=exposure[exposure$Species=="Ssid",])
+  isSingular(fit_Ssid)
+  anova(fit_Ssid)
+  ranova(fit_Ssid)
+  summary(fit_Ssid)
+  plot(fit_Ssid)
+  #step(fit_Ssid)
+```
+
+# 3.3 LMMs - Expossure Raw data
+
+```{r}
+exposure<-data[data$Timepoint=="Exposure", ]
+
+## model 1: LMER for both species
+  fit1<-lmerTest::lmer(FINAL.MO2..nmol.min. ~Treatment +
+                         Species + (1|Tank), data=exposure)
+  isSingular(fit1)
+  anova(fit1)
+  ranova(fit1)
+  summary(fit1)
+  par(mfrow=c(2,2))
+  plot(fit1)
+  par(mfrow=c(1,1))
+  #step(fit1)
+  
+## model 2: LMER for Past
+  fit_Past<-lmerTest::lmer(FINAL.MO2..nmol.min. ~Treatment + (1|Tank),
+            data=exposure[exposure$Species=="Past",])
+  isSingular(fit_Past)
+  anova(fit_Past)
+  ranova(fit_Past)
+  summary(fit_Past)
+  par(mfrow=c(2,2))
+  plot(fit_Past)
+  par(mfrow=c(1,1))
+  #step(fit_Past)
+  
+## model 3: LMER for Ssid
+  fit_Ssid<-lmerTest::lmer(FINAL.MO2..nmol.min. ~Treatment + (1|Tank),
+               data=exposure[exposure$Species=="Ssid",])
+  isSingular(fit_Ssid)
+  anova(fit_Ssid)
+  ranova(fit_Ssid)
+  summary(fit_Ssid)
+  plot(fit_Ssid)
+  #step(fit_Ssid)
+```
+
+# 3.3 LMMs - Recovery - log
+
+```{r}
+recovery<-data[data$Timepoint=="Recovery", ]
+
+## model 1: LMER for both species
+  fit1<-lmerTest::lmer(log(FINAL.MO2..nmol.min.) ~Treatment +
+                         Species + (1|Tank), data=recovery)
+  isSingular(fit1)
+  anova(fit1)
+  ranova(fit1)
+  summary(fit1)
+  par(mfrow=c(2,2))
+  plot(fit1)
+  par(mfrow=c(1,1))
+  #step(fit1)
+  
+## model 2: LMER for Past
+  fit_Past<-lmerTest::lmer(log(FINAL.MO2..nmol.min.) ~Treatment + (1|Tank),
+            data=recovery[recovery$Species=="Past",])
+  isSingular(fit_Past)
+  anova(fit_Past)
+  ranova(fit_Past)
+  summary(fit_Past)
+  par(mfrow=c(2,2))
+  plot(fit_Past)
+  par(mfrow=c(1,1))
+  #step(fit_Past)
+  
+## model 3: LMER for Ssid
+  fit_Ssid<-lmerTest::lmer(log(FINAL.MO2..nmol.min.) ~Treatment + (1|Tank),
+               data=recovery[recovery$Species=="Ssid",])
+  isSingular(fit_Ssid)
+  anova(fit_Ssid)
+  ranova(fit_Ssid)
+  summary(fit_Ssid)
+  plot(fit_Ssid)
+  #step(fit_Ssid)
+```
+
+# 3.3 LMMs - Recovery
+
+```{r}
+recovery<-data[data$Timepoint=="Recovery", ]
+
+## model 1: LMER for both species
+  fit1<-lmerTest::lmer(FINAL.MO2..nmol.min. ~Treatment +
+                         Species + (1|Tank), data=recovery)
+  isSingular(fit1)
+  anova(fit1)
+  ranova(fit1)
+  summary(fit1)
+  par(mfrow=c(2,2))
+  plot(fit1)
+  par(mfrow=c(1,1))
+  #step(fit1)
+  
+## model 2: LMER for Past
+  fit_Past<-lmerTest::lmer(FINAL.MO2..nmol.min. ~Treatment + (1|Tank),
+            data=recovery[recovery$Species=="Past",])
+  isSingular(fit_Past)
+  anova(fit_Past)
+  ranova(fit_Past)
+  summary(fit_Past)
+  par(mfrow=c(2,2))
+  plot(fit_Past)
+  par(mfrow=c(1,1))
+  #step(fit_Past)
+  
+## model 3: LMER for Ssid
+  fit_Ssid<-lmerTest::lmer(FINAL.MO2..nmol.min. ~Treatment + (1|Tank),
+               data=recovery[recovery$Species=="Ssid",])
+  isSingular(fit_Ssid)
+  anova(fit_Ssid)
+  ranova(fit_Ssid)
+  summary(fit_Ssid)
+  plot(fit_Ssid)
+  #step(fit_Ssid)
+```
+
+# 4 Change
+
+# 4.1 LMMs 
+
+```{r}
+## model 1: LMER for both species
+  fit1<-lmerTest::lmer(change ~Treatment.Exposure * 
+                         Species.Exposure + (1|Tank.Exposure), data=wide.data)
+  isSingular(fit1)
+  anova(fit1)
+  ranova(fit1)
+  summary(fit1)
+  par(mfrow=c(2,2))
+  plot(fit1)
+  par(mfrow=c(1,1))
+  #step(fit1)
+  
+## model 2: LMER for Past
+  fit_Past<-lmerTest::lmer(change ~Treatment.Exposure + (1|Tank.Exposure),
+            data=wide.data[wide.data$Species.Exposure=="Past",])
+  isSingular(fit_Past)
+  anova(fit_Past)
+  ranova(fit_Past)
+  summary(fit_Past)
+  par(mfrow=c(2,2))
+  plot(fit_Past)
+  par(mfrow=c(1,1))
+  #step(fit_Past)
+  
+## model 3: LMER for Ssid
+  fit_Ssid<-lmerTest::lmer(change ~Treatment.Exposure + (1|Tank.Exposure),
+               data=wide.data[wide.data$Species.Exposure=="Ssid",])
+  isSingular(fit_Ssid)
+  anova(fit_Ssid)
+  ranova(fit_Ssid)
+  summary(fit_Ssid)
+  plot(fit_Ssid)
+  #step(fit_Ssid)
+```
+
+```{r}
+# Pairwise comparisons
+  # Day specific comparisons
+  # Sw.emmc<-emmeans(fit4, ~Treatment)
+  # Sw_groups<-cld(Sw.emmc)
+  # Sw_groups
+```
+
+# 4.2 ANOVAs RAW DATA
+
+```{r}
+## model 1: LMER for both species
+  fit1<-lm(change ~Treatment.Exposure * Species.Exposure,
+              data=wide.data)
+ 
+  anova(fit1)
+  summary(fit1)
+  par(mfrow=c(2,2))
+  plot(fit1)
+  par(mfrow=c(1,1))
+  #step(fit1)
+  
+## model 2: LMER for Past
+  fit_Past<-lm(change ~Treatment.Exposure,
+              data=wide.data[wide.data$Species.Exposure=="Past",])
+  anova(fit_Past)
+  summary(fit_Past)
+  par(mfrow=c(2,2))
+  plot(fit_Past)
+  par(mfrow=c(1,1))
+  #step(fit_Past)
+  
+## model 3: LMER for Ssid
+  fit_Ssid<-lm(change ~Treatment.Exposure,
+              data=wide.data[wide.data$Species.Exposure=="Ssid",])
+  anova(fit_Ssid)
+  summary(fit_Ssid)
+  par(mfrow=c(2,2))
+  plot(fit_Ssid)
+  par(mfrow=c(1,1))
+  #step(fit_Ssid)
+```
+
+# 4.3 ANOVAs log data 
+
+```{r}
+## model 1: LMER for both species
+  fit1<-lm(log(change) ~Treatment.Exposure * Species.Exposure,
+              data=wide.data)
+  anova(fit1)
+  #ranova(fit1)
+  summary(fit1)
+  par(mfrow=c(2,2))
+  plot(fit1)
+  par(mfrow=c(1,1))
+  #step(fit1)
+  
+## model 2: LMER for Past
+  fit_Past<-lm(log(change) ~Treatment.Exposure,
+              data=wide.data[wide.data$Species.Exposure=="Past",])
+  anova(fit_Past)
+  summary(fit_Past)
+  par(mfrow=c(2,2))
+  plot(fit_Past)
+  par(mfrow=c(1,1))
+  #step(fit_Past)
+  
+## model 3: LMER for Ssid
+  fit_Ssid<-lm(log(change) ~Treatment.Exposure,
+              data=wide.data[wide.data$Species.Exposure=="Ssid",])
+  anova(fit_Ssid)
+  summary(fit_Ssid)
+  par(mfrow=c(2,2))
+  plot(fit_Ssid)
+  par(mfrow=c(1,1))
+  #step(fit_Ssid)
+
+# Pairwise comparisons
+  # Day specific comparisons
+  # Sw.emmc<-emmeans(fit4, ~Treatment)
+  # Sw_groups<-cld(Sw.emmc)
+  # Sw_groups
+
+```
+
+# Packages used
+
+```{r}
+# Creates bibliography 
+#knitr::write_bib(c(.packages()), "packages.bib")
+```
