@@ -80,8 +80,8 @@ knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
 ```{r}
 O2<- ggplot(data, aes (Treatment, FINAL.MO2..nmol.min.)) +
   geom_boxplot ()+
-  stat_summary(fun.data = "mean_cl_boot",geom = "errorbar", width = 0.2 )+
-  stat_summary(fun=mean, geom="point") + 
+  stat_summary(fun.data = "mean_cl_boot",geom = "errorbar", width = 0.2,  color="blue" )+
+  stat_summary(fun=mean, geom="point",  color="blue") + 
   #geom_point(shape=21)+
 
   geom_jitter(alpha=0.5, shape=21)+
@@ -102,7 +102,7 @@ delta_O2<- ggplot(wide.data, aes (Treatment.Exposure, change)) +
   geom_boxplot ()+
   stat_summary(fun.data = "mean_cl_boot",geom = "errorbar", width = 0.2, colour="blue")+
   stat_summary(fun=mean, geom="point", colour="blue") + 
-  #geom_point(shape=21)+
+  geom_point(shape=21)+
 
   geom_point(alpha=0.5, shape=21)+
   theme(legend.position = "bottom")+
@@ -132,9 +132,9 @@ log_delta_O2<- ggplot(wide.data, aes (Treatment.Exposure, log(change))) +
 log_delta_O2
 ```
 
-# 3 Values 
+# 3 Models with the O2 values 
 
-# 3.1 LMMs - both time points
+## 3.1 LMMs - both time points
 
 ```{r}
 ## model 1: LMER for both species
@@ -172,7 +172,7 @@ log_delta_O2
   #step(fit_Ssid)
 ```
 
-# 3.2 LMMs - Expossure - log
+## 3.2 LMMs - Expossure - log O2
 
 ```{r}
 exposure<-data[data$Timepoint=="Exposure", ]
@@ -212,7 +212,7 @@ exposure<-data[data$Timepoint=="Exposure", ]
   #step(fit_Ssid)
 ```
 
-# 3.3 LMMs - Expossure Raw data
+## 3.3 LMMs - Expossure Raw data
 
 ```{r}
 exposure<-data[data$Timepoint=="Exposure", ]
@@ -252,7 +252,7 @@ exposure<-data[data$Timepoint=="Exposure", ]
   #step(fit_Ssid)
 ```
 
-# 3.3 LMMs - Recovery - log
+## 3.4 LMMs - Recovery - log O2
 
 ```{r}
 recovery<-data[data$Timepoint=="Recovery", ]
@@ -292,7 +292,7 @@ recovery<-data[data$Timepoint=="Recovery", ]
   #step(fit_Ssid)
 ```
 
-# 3.3 LMMs - Recovery
+## 3.5 LMMs - Recovery Raw data
 
 ```{r}
 recovery<-data[data$Timepoint=="Recovery", ]
@@ -332,9 +332,9 @@ recovery<-data[data$Timepoint=="Recovery", ]
   #step(fit_Ssid)
 ```
 
-# 4 Change
+# 4 Models with O2 Change (Expossure-Initial)
 
-# 4.1 LMMs 
+## 4.1 LMMs 
 
 ```{r}
 ## model 1: LMER for both species
@@ -370,6 +370,7 @@ recovery<-data[data$Timepoint=="Recovery", ]
   summary(fit_Ssid)
   plot(fit_Ssid)
   #step(fit_Ssid)
+
 ```
 
 ```{r}
@@ -380,10 +381,10 @@ recovery<-data[data$Timepoint=="Recovery", ]
   # Sw_groups
 ```
 
-# 4.2 ANOVAs RAW DATA
+## 4.2 ANOVAs RAW DATA
 
 ```{r}
-## model 1: LMER for both species
+## model 1: LM for both species
   fit1<-lm(change ~Treatment.Exposure * Species.Exposure,
               data=wide.data)
  
@@ -392,9 +393,8 @@ recovery<-data[data$Timepoint=="Recovery", ]
   par(mfrow=c(2,2))
   plot(fit1)
   par(mfrow=c(1,1))
-  #step(fit1)
   
-## model 2: LMER for Past
+## model 2: LM for Past
   fit_Past<-lm(change ~Treatment.Exposure,
               data=wide.data[wide.data$Species.Exposure=="Past",])
   anova(fit_Past)
@@ -404,7 +404,7 @@ recovery<-data[data$Timepoint=="Recovery", ]
   par(mfrow=c(1,1))
   #step(fit_Past)
   
-## model 3: LMER for Ssid
+## model 3: LM for Ssid
   fit_Ssid<-lm(change ~Treatment.Exposure,
               data=wide.data[wide.data$Species.Exposure=="Ssid",])
   anova(fit_Ssid)
@@ -415,7 +415,7 @@ recovery<-data[data$Timepoint=="Recovery", ]
   #step(fit_Ssid)
 ```
 
-# 4.3 ANOVAs log data 
+## 4.3 ANOVAs log data change?
 
 ```{r}
 ## model 1: LMER for both species
