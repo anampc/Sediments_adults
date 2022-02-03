@@ -80,8 +80,8 @@ knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
 ```{r}
 O2<- ggplot(data, aes (Treatment, FINAL.MO2..nmol.min.)) +
   geom_boxplot ()+
-  stat_summary(fun.data = "mean_cl_boot",geom = "errorbar", width = 0.2 )+
-  stat_summary(fun=mean, geom="point") + 
+  stat_summary(fun.data = "mean_cl_boot",geom = "errorbar", width = 0.2,  color="blue" )+
+  stat_summary(fun=mean, geom="point",  color="blue") + 
   #geom_point(shape=21)+
 
   geom_jitter(alpha=0.5, shape=21)+
@@ -102,7 +102,7 @@ delta_O2<- ggplot(wide.data, aes (Treatment.Exposure, change)) +
   geom_boxplot ()+
   stat_summary(fun.data = "mean_cl_boot",geom = "errorbar", width = 0.2, colour="blue")+
   stat_summary(fun=mean, geom="point", colour="blue") + 
-  #geom_point(shape=21)+
+  geom_point(shape=21)+
 
   geom_point(alpha=0.5, shape=21)+
   theme(legend.position = "bottom")+
@@ -363,6 +363,26 @@ recovery<-data[data$Timepoint=="Recovery", ]
   
 ## model 3: LMER for Ssid
   fit_Ssid<-lmerTest::lmer(change ~Treatment.Exposure + (1|Tank.Exposure),
+               data=wide.data[wide.data$Species.Exposure=="Ssid",])
+  isSingular(fit_Ssid)
+  anova(fit_Ssid)
+  ranova(fit_Ssid)
+  summary(fit_Ssid)
+  plot(fit_Ssid)
+  #step(fit_Ssid)
+  
+  ## model 3: LMER for Ssid
+  fit_Ssid<-lm(change ~Treatment.Exposure,
+               data=wide.data[wide.data$Species.Exposure=="Ssid",])
+  isSingular(fit_Ssid)
+  anova(fit_Ssid)
+  ranova(fit_Ssid)
+  summary(fit_Ssid)
+  plot(fit_Ssid)
+  #step(fit_Ssid)
+  
+    ## model 3: LMER for Ssid
+  fit_Ssid<-lm(log(change) ~Treatment.Exposure,
                data=wide.data[wide.data$Species.Exposure=="Ssid",])
   isSingular(fit_Ssid)
   anova(fit_Ssid)
