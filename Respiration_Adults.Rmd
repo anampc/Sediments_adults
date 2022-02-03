@@ -370,7 +370,6 @@ recovery<-data[data$Timepoint=="Recovery", ]
   summary(fit_Ssid)
   plot(fit_Ssid)
   #step(fit_Ssid)
-
 ```
 
 ```{r}
